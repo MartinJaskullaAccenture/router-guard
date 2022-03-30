@@ -3,15 +3,18 @@ import { NextRouter, useRouter } from "next/router";
 import { meinSkyGuard } from './meinSkyGuard';
 import { salesGuard } from './salesGuard';
 
+// TODO Export registerGuards and remove absoluteUrl from type
+
 export type Guards = {
-    [url: string]: () => { newUrl: string, absoluteUrl?: boolean, newTab?: boolean }
+    [url: string]: (url: string) => { newUrl: string, absoluteUrl?: boolean, newTab?: boolean, reload?: boolean }
 }
 
-// TODO Export registerGuards
 const guards: Guards = {
     ...meinSkyGuard,
-    ...salesGuard
+    ...salesGuard,
+    "/mein-sky/*": (url) => ({newUrl: url, reload: true})
 }
+
 
 export function useRouteGuards() {
     const router = useRouter()
@@ -39,8 +42,9 @@ export function useRouteGuards() {
 }
 
 function checkGuards(url: string, guards: Guards, router: NextRouter) {
+    // getCMSData()
     if (url in guards) {
-        const {newUrl, absoluteUrl, newTab} = guards[url]()
+        const {newUrl, absoluteUrl, newTab} = guards[url](url)
         // Allow navigation
         if (newUrl === url) return
         // No navigation
