@@ -3,12 +3,20 @@ import { NextRouter, useRouter } from "next/router";
 import { meinSkyGuard } from './meinSkyGuard';
 import { salesGuard } from './salesGuard';
 
-// TODO Export registerGuards and remove absoluteUrl from type
 
-export type Guards = {
-    [url: string]: (url: string) => { newUrl: string, absoluteUrl?: boolean, newTab?: boolean, reload?: boolean }
+interface GuardParams {
+    url: string,
+    allowNavigation: () => void,
+    noNavigation: () => never,
+    routerPush: (...args: Parameters<NextRouter["push"]>) => never,
+    windowOpen: (...args: Parameters<typeof window["open"]>) => never
 }
 
+export type Guards = {
+    [url: string]: (guardParams: GuardParams) => void
+}
+
+// TODO Export registerGuards
 const guards: Guards = {
     ...meinSkyGuard,
     ...salesGuard,
@@ -43,18 +51,22 @@ export function useRouteGuards() {
 
 function checkGuards(url: string, guards: Guards, router: NextRouter) {
     // getCMSData()
+    // TODO Check * in url
     if (url in guards) {
-        const {newUrl, absoluteUrl, newTab} = guards[url](url)
-        // Allow navigation
-        if (newUrl === url) return
-        // No navigation
-        if (!newUrl) throw 'Navigation cancelled (This is not an error).';
-        // Different navigation
-        if (absoluteUrl) {
-            window.open(newUrl, newTab ? "_blank" : "_self", "noopener");
-        } else {
-            router.push(newUrl)
-        }
-        throw `Navigation changed from ${url} to ${newUrl} (This is not an error).`;
+        guards[url]({
+            url,
+            allowNavigation: () => undefined,
+            noNavigation: () => {
+                throw 'Navigation cancelled (This is not an error).'
+            },
+            routerPush: (...args: Parameters<NextRouter["push"]>) => {
+                router.push(...args)
+                throw `Navigation changed from ${url} to ${args[0]} (This is not an error).`;
+            },
+            windowOpen: (...args: Parameters<typeof window["open"]>) => {
+                window.open(...args)
+                throw `Navigation changed from ${url} to ${args[0]} (This is not an error).`;
+            }
+        })
     }
 }
