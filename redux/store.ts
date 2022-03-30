@@ -1,4 +1,4 @@
 export const store = {
-    isLoggedIn: true,
+    isLoggedIn: false,
     isActive: true
 }
