@@ -5,9 +5,10 @@ import { salesGuard } from './salesGuard';
 import { googleGuard } from './googleGuard';
 
 export type Guards = {
-    [url: string]: () => string
+    [url: string]: () => { newUrl: string, absoluteUrl?: boolean, newTab?: boolean }
 }
 
+// TODO Export registerGuards
 const guards: Guards = {
     ...meinSkyGuard,
     ...salesGuard,
@@ -18,46 +19,64 @@ const guards: Guards = {
 export function useRouteGuards() {
     const router = useRouter()
 
+
     useEffect(() => {
-        const callbackNextRouter = (url: string) => navigateNext(url, guards, router)
+        console.log(router.pathname)
+    }, [router.pathname])
+
+    useEffect(() => {
+        const callbackNextRouter = (url: string) => validateNextRouterNavigation(url, guards, router)
         router.events.on('routeChangeStart', callbackNextRouter);
         return () => router.events.off('routeChangeStart', callbackNextRouter)
-    }, [router.pathname])
+    })
 
     // Not sure if needed
     useEffect(() => {
-        const callbackWindow = (event: BeforeUnloadEvent) => navigateWindow(document.activeElement, guards, event)
+        const callbackWindow = (event: BeforeUnloadEvent) => validateWindowNavigation(document.activeElement, guards, event, router)
         window.addEventListener('beforeunload', callbackWindow);
         return () => window.removeEventListener('beforeunload', callbackWindow);
     }, [])
 }
 
-function navigateNext(url: string, guards: Guards, router: NextRouter) {
+
+
+function validateNextRouterNavigation(url: string, guards: Guards, router: NextRouter) {
     if (url in guards) {
-        const redirectionUrl = guards[url]()
+        const {newUrl, absoluteUrl, newTab} = guards[url]()
         // Allow navigation
-        if (url === redirectionUrl) return
+        if (newUrl === url) return
         // No navigation
-        if (!redirectionUrl) throw 'Abort route change. Please ignore this error.';
+        if (!newUrl) throw 'Navigation cancelled (This is not an error).';
         // Different navigation
-        router.replace(redirectionUrl)
+        if (absoluteUrl) {
+            window.open(newUrl, newTab ? "_blank" : "_self", "noopener");
+            throw 'Navigation changed (This is not an error).';
+        } else {
+            router.push(newUrl)
+            throw 'Navigation changed (This is not an error).';
+        }
     }
 }
 
-function navigateWindow(activeElement: Document["activeElement"], guards: Guards, event: BeforeUnloadEvent) {
+function validateWindowNavigation(activeElement: Document["activeElement"], guards: Guards, event: BeforeUnloadEvent, router: NextRouter) {
     if (document.activeElement instanceof HTMLAnchorElement) {
-        debugger
         const link = document.activeElement
         const href = link.href
         if (href in guards) {
-            const redirectionUrl = guards[href]() // TODO Maybe better to pass in NextRouter and let the guard handle navigation
+            const {newUrl, absoluteUrl, newTab} = guards[href]()
             // Allow navigation
-            if (href === redirectionUrl) return
+            if (href === newUrl) return
             event.preventDefault();
             // No navigation
-            if (!redirectionUrl) return;
+            if (!newUrl) return;
             // Different navigation
-            window.open(redirectionUrl, link.target, "noopener");
+            if (absoluteUrl) {
+                const target = new Map().set(undefined, link.target).set(true, "_blank").set(false, "_self").get(newTab)
+                window.open(newUrl, target, "noopener");
+                throw 'Navigation changed (This is not an error).';
+            } else {
+                throw 'Navigation changed (This is not an error).';
+            }
         }
     }
 }
