@@ -12,10 +12,13 @@ const guards: Guards = {
     ...meinSkyGuard,
     ...salesGuard
 }
+
 export function useRouteGuards() {
     const router = useRouter()
 
-
+    // When a user enters a url in the browser bar manually, there is no way to prevent them from getting
+    // the html file and displaying the page (Preventing that is only be possible with SSR).
+    // This effect redirects the user away if they are on a wrong page. The wrong page will be visible for a short time (flickering).
     useEffect(() => {
         try {
             checkGuards(router.pathname, guards, router)
@@ -26,6 +29,8 @@ export function useRouteGuards() {
         }
     }, [router.pathname])
 
+    // This effects changes the navigation destination before it happens.
+    // The wrong page will not be loaded over the network and will not be displayed (no flickering).
     useEffect(() => {
         const callback = (url: string) => checkGuards(url, guards, router)
         router.events.on('routeChangeStart', callback);
