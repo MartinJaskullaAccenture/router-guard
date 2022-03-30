@@ -18,7 +18,7 @@ export function useRouteGuards() {
 
     useEffect(() => {
         try {
-            validateRoute(router.pathname, guards, router)
+            checkGuards(router.pathname, guards, router)
         } catch (_) {
             // throw "string" is currently the only way to cancel NextJS navigations:
             // https://github.com/vercel/next.js/discussions/12348
@@ -27,13 +27,13 @@ export function useRouteGuards() {
     }, [router.pathname])
 
     useEffect(() => {
-        const callbackNextRouter = (url: string) => validateRoute(url, guards, router)
-        router.events.on('routeChangeStart', callbackNextRouter);
-        return () => router.events.off('routeChangeStart', callbackNextRouter)
+        const callback = (url: string) => checkGuards(url, guards, router)
+        router.events.on('routeChangeStart', callback);
+        return () => router.events.off('routeChangeStart', callback)
     })
 }
 
-function validateRoute(url: string, guards: Guards, router: NextRouter) {
+function checkGuards(url: string, guards: Guards, router: NextRouter) {
     if (url in guards) {
         const {newUrl, absoluteUrl, newTab} = guards[url]()
         // Allow navigation
