@@ -8,7 +8,6 @@ import { wildcardToRegExp } from './wildcard-to-reg-exp';
 interface GuardParams {
     url: string,
     allowNavigation: () => void,
-    noNavigation: () => never,
     routerPush: (...args: Parameters<NextRouter["push"]>) => never,
     windowOpen: (...args: Parameters<typeof window["open"]>) => never
 }
@@ -21,7 +20,7 @@ const guards: Guards = {
     ...meinSkyGuard,
     ...salesGuard,
     // "/mein-sky/*": ({noNavigation}) => noNavigation(),
-    "/mein-sky/*/*": ({noNavigation}) => noNavigation()
+    "/mein-sky/*/*": ({routerPush}) => routerPush("/")
 }
 
 
@@ -57,9 +56,6 @@ function checkGuards(url: string, guards: Guards, router: NextRouter) {
         guard({
             url,
             allowNavigation: () => undefined,
-            noNavigation: () => {
-                throw 'Navigation cancelled (This is not an error).'
-            },
             routerPush: (...args: Parameters<NextRouter["push"]>) => {
                 router.push(...args)
                 throw `Navigation changed from ${url} to ${args[0]} (This is not an error).`;
