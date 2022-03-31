@@ -19,8 +19,8 @@ export type Guards = {
 const guards: Guards = {
     ...meinSkyGuard,
     ...salesGuard,
-    // "/mein-sky/*/*": ({routerPush, allowNavigation}) => allowNavigation()
-    "/mein-sky/*/*": ({routerPush, allowNavigation}) => routerPush("/")
+    "/mein-sky/*/*": ({routerPush, allowNavigation}) => allowNavigation()
+    // "/mein-sky/*/*": ({routerPush, allowNavigation}) => routerPush("/")
 }
 
 export function RouteGuard({children}: { children: React.ReactNode }): JSX.Element | null {
