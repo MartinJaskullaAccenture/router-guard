@@ -25,7 +25,7 @@ const guards: Guards = {
 
 export function RouteGuard({children}: { children: React.ReactNode }): JSX.Element | null {
     const router = useRouter();
-    const [showFirstPage, setShowFirstPage] = useState(false);
+    const [showFirstPage, setShowFirstPage] = useState(true);
 
     // When a user enters a url in the browser bar manually, there is no way to prevent them from getting
     // the html file and displaying the page (Preventing that is only be possible with SSR).
