@@ -1,10 +1,13 @@
 import { NextRouter, useRouter } from 'next/router';
-import { useEffect, useState } from 'react';
+import { Dispatch, SetStateAction, useEffect, useState } from 'react';
 import { meinSkyGuard } from './meinSkyGuard';
 import { salesGuard } from './salesGuard';
 
-let resolveFirstPageAllowed: () => void
-export const firstPageAllowed = new Promise<void>((resolve, reject) => resolveFirstPageAllowed = resolve)
+let firstPageAllowed = false
+
+export function isFirstPageAllowed() {
+    return firstPageAllowed
+}
 
 interface GuardParams {
     url: string,
@@ -27,11 +30,8 @@ const guards: Guards = {
 export function RouteGuard({children}: { children: React.ReactNode }): JSX.Element | null {
     const router = useRouter();
     const [showFirstPage, setShowFirstPage] = useState(false);
-    const allowFirstPage = () => {
-        setShowFirstPage(true)
-    }
 
-    useEffect(() => checkGuardsForFirstPage(router.pathname, guards, router, allowFirstPage), [])
+    useEffect(() => checkGuardsForFirstPage(router.pathname, guards, router, setShowFirstPage), [])
 
     useEffect(() => {
         const callback = (url: string) => checkGuards(url, guards, router)
@@ -42,19 +42,24 @@ export function RouteGuard({children}: { children: React.ReactNode }): JSX.Eleme
     return <div hidden={!showFirstPage}>{children}</div>
 }
 
-function checkGuardsForFirstPage(url: string, guards: Guards, router: NextRouter, allowFirstPage: () => void) {
+function checkGuardsForFirstPage(url: string, guards: Guards, router: NextRouter, setShowFirstPage: Dispatch<SetStateAction<boolean>>) {
     const guard = getGuard(url, guards)
-    if (!guard) return allowFirstPage()
+    if (!guard) {
+        firstPageAllowed = true
+        setShowFirstPage(true)
+        return
+    }
 
     guard({
         url,
         allowNavigation: () => {
-            allowFirstPage()
-            resolveFirstPageAllowed()
+            setShowFirstPage(true)
+            firstPageAllowed = true
         },
         routerPush: (...args: Parameters<NextRouter["push"]>) => {
             const showFirstPage = () => {
-                allowFirstPage(); // TODO This resolves to fast. I thought routeChangeComplete triggers after we are on new page, but it triggers and then useEffect of the old page still triggers
+                firstPageAllowed = true
+                setShowFirstPage(true)
                 router.events.off('routeChangeComplete', showFirstPage);
             }
             router.events.on('routeChangeComplete', showFirstPage)

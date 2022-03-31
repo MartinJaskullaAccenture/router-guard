@@ -1,12 +1,18 @@
 import type { NextPage } from 'next'
 import Link from "next/link";
 import { useRouter } from 'next/router';
+import { useEffect } from 'react';
+import { isFirstPageAllowed } from '../guards/RouteGuard';
 
 const Home: NextPage = () => {
     // useEffect -> setCMSData()
     // or setCMSData() in NextJS/LinkWrapper + spread all props in Galactica/Link.tsx <Wrapper href={LinkWrapper && target !== "_blank" ? href : undefined} scroll={scroll}>
     const router = useRouter()
 
+    useEffect(() => {
+        if (!isFirstPageAllowed()) return
+        console.log("Ready on HomePage")
+    })
     return <>
         <h1>Home</h1>
         <ul>
