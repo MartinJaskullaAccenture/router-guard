@@ -1,9 +1,10 @@
 import type { AppProps } from 'next/app'
-import { useRouteGuards } from '../guards/useRouteGuards';
+import { RouteGuard } from '../guards/RouteGuard';
 
 function MyApp({Component, pageProps}: AppProps) {
-    useRouteGuards()
-    return <Component {...pageProps} />
+    return <RouteGuard>
+        <Component {...pageProps} />
+    </RouteGuard>
 }
 
 export default MyApp

@@ -1,5 +1,5 @@
-import { Guards } from '../guards/useRouteGuards';
 import { store } from '../redux/store';
+import { Guards } from './RouteGuard';
 
 export const meinSkyGuard: Guards = {
     "/mein-sky": ({allowNavigation, routerPush}) => store.isLoggedIn
