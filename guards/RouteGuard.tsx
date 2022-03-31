@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react';
 import { meinSkyGuard } from './meinSkyGuard';
 import { salesGuard } from './salesGuard';
 
-// TODO Maybe overkill. Instead try export function pageReady(){getElementById("routeGuard").getAttribute("hidden")} // Maybe timing works out
 let resolveFirstPageAllowed: () => void
 export const firstPageAllowed = new Promise<void>((resolve, reject) => resolveFirstPageAllowed = resolve)
 
@@ -30,7 +29,6 @@ export function RouteGuard({children}: { children: React.ReactNode }): JSX.Eleme
     const [showFirstPage, setShowFirstPage] = useState(false);
     const allowFirstPage = () => {
         setShowFirstPage(true)
-        resolveFirstPageAllowed()
     }
 
     useEffect(() => checkGuardsForFirstPage(router.pathname, guards, router, allowFirstPage), [])
@@ -50,7 +48,10 @@ function checkGuardsForFirstPage(url: string, guards: Guards, router: NextRouter
 
     guard({
         url,
-        allowNavigation: () => allowFirstPage(),
+        allowNavigation: () => {
+            allowFirstPage()
+            resolveFirstPageAllowed()
+        },
         routerPush: (...args: Parameters<NextRouter["push"]>) => {
             const showFirstPage = () => {
                 allowFirstPage(); // TODO This resolves to fast. I thought routeChangeComplete triggers after we are on new page, but it triggers and then useEffect of the old page still triggers

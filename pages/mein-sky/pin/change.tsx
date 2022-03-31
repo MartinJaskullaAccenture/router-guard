@@ -9,7 +9,7 @@ type Props = InferGetStaticPropsType<typeof getStaticProps>
 const ChangePin: NextPage<Props> = (props: Props) => {
     useEffect(() => {
         firstPageAllowed.then(() => {
-            debugger
+            // debugger
             fetch('https://jsonplaceholder.typicode.com/todos/1')
                 .then(response => response.json())
                 .then(json => console.log(json))
