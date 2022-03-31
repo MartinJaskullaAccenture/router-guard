@@ -1,7 +1,11 @@
 import { NextRouter, useRouter } from 'next/router';
-import { Dispatch, SetStateAction, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { meinSkyGuard } from './meinSkyGuard';
 import { salesGuard } from './salesGuard';
+
+// TODO Maybe overkill. Instead try export function pageReady(){getElementById("routeGuard").getAttribute("hidden")} // Maybe timing works out
+let resolveFirstPageAllowed: () => void
+export const firstPageAllowed = new Promise<void>((resolve, reject) => resolveFirstPageAllowed = resolve)
 
 interface GuardParams {
     url: string,
@@ -17,69 +21,63 @@ export type Guards = {
 const guards: Guards = {
     ...meinSkyGuard,
     ...salesGuard,
-    "/mein-sky/*/*": ({routerPush, allowNavigation}) => allowNavigation()
-    // "/mein-sky/*/*": ({routerPush, allowNavigation}) => routerPush("/")
+    // "/mein-sky/*/*": ({routerPush, allowNavigation}) => allowNavigation()
+    "/mein-sky/*/*": ({routerPush, allowNavigation, windowOpen}) => routerPush("/")
 }
 
 export function RouteGuard({children}: { children: React.ReactNode }): JSX.Element | null {
     const router = useRouter();
-    const isSSG = typeof window === "undefined"
-    const [showFirstPage, setShowFirstPage] = useState(isSSG);
+    const [showFirstPage, setShowFirstPage] = useState(false);
+    const allowFirstPage = () => {
+        setShowFirstPage(true)
+        resolveFirstPageAllowed()
+    }
 
-    // When a user enters a url in the browser bar manually, there is no way to prevent them from getting
-    // the html file and displaying the page (Preventing that is only be possible with SSR).
-    // This effect redirects the user away if they are on a wrong page. The wrong page will be visible for a short time (flickering).
-    useEffect(() => checkGuardsForFirstPage(router.pathname, guards, router, setShowFirstPage), [])
+    useEffect(() => checkGuardsForFirstPage(router.pathname, guards, router, allowFirstPage), [])
 
-    // This effects changes the navigation destination before it happens.
-    // The wrong page will not be loaded over the network and will not be displayed (no flickering).
     useEffect(() => {
         const callback = (url: string) => checkGuards(url, guards, router)
         router.events.on('routeChangeStart', callback);
         return () => router.events.off('routeChangeStart', callback)
     })
 
-    return showFirstPage ? <>{children}</> : null
+    return <div hidden={!showFirstPage}>{children}</div>
 }
 
-function checkGuardsForFirstPage(url: string, guards: Guards, router: NextRouter, setShowFirstPage: Dispatch<SetStateAction<boolean>>) {
+function checkGuardsForFirstPage(url: string, guards: Guards, router: NextRouter, allowFirstPage: () => void) {
     const guard = getGuard(url, guards)
-    if (guard) {
-        guard({
-            url,
-            allowNavigation: () => setShowFirstPage(true),
-            routerPush: (...args: Parameters<NextRouter["push"]>) => {
-                const showFirstPage = () => {
-                    setShowFirstPage(true);
-                    router.events.off('routeChangeComplete', showFirstPage);
-                }
-                router.events.on('routeChangeComplete', showFirstPage)
-                router.push(...args)
-            },
-            windowOpen: (...args: Parameters<typeof window["open"]>) => window.open(...args)
+    if (!guard) return allowFirstPage()
 
-        })
-    } else {
-        setShowFirstPage(true)
-    }
+    guard({
+        url,
+        allowNavigation: () => allowFirstPage(),
+        routerPush: (...args: Parameters<NextRouter["push"]>) => {
+            const showFirstPage = () => {
+                allowFirstPage(); // TODO This resolves to fast. I thought routeChangeComplete triggers after we are on new page, but it triggers and then useEffect of the old page still triggers
+                router.events.off('routeChangeComplete', showFirstPage);
+            }
+            router.events.on('routeChangeComplete', showFirstPage)
+            router.push(...args)
+        },
+        windowOpen: (...args: Parameters<typeof window["open"]>) => window.open(...args)
+    })
 }
 
 function checkGuards(url: string, guards: Guards, router: NextRouter) {
     const guard = getGuard(url, guards)
+    if (!guard) return
 
-    if (guard) {
-        guard({
-            url,
-            allowNavigation: () => undefined,
-            routerPush: (...args: Parameters<NextRouter["push"]>) => {
-                router.push(...args)
-                // throw "string" is currently the only way to cancel NextJS navigations:
-                // https://github.com/vercel/next.js/discussions/12348
-                throw `Navigation changed from ${url} to ${args[0]} (This is not an error).`;
-            },
-            windowOpen: (...args: Parameters<typeof window["open"]>) => window.open(...args)
-        })
-    }
+    guard({
+        url,
+        allowNavigation: () => undefined,
+        routerPush: (...args: Parameters<NextRouter["push"]>) => {
+            router.push(...args)
+            // throw "string" is currently the only way to cancel NextJS navigations:
+            // https://github.com/vercel/next.js/discussions/12348
+            throw `Navigation changed from ${url} to ${args[0]} (This is not an error).`;
+        },
+        windowOpen: (...args: Parameters<typeof window["open"]>) => window.open(...args)
+    })
 }
 
 export function getGuard(url: string, guards: Guards): Guards[keyof Guards] | undefined {
