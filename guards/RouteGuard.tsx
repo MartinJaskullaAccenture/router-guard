@@ -3,8 +3,6 @@ import { Dispatch, SetStateAction, useEffect, useState } from 'react';
 import { meinSkyGuard } from './meinSkyGuard';
 import { salesGuard } from './salesGuard';
 
-// TODO CHeck SSG Output. Worst case you can check typeof window
-
 interface GuardParams {
     url: string,
     allowNavigation: () => void,
@@ -25,7 +23,8 @@ const guards: Guards = {
 
 export function RouteGuard({children}: { children: React.ReactNode }): JSX.Element | null {
     const router = useRouter();
-    const [showFirstPage, setShowFirstPage] = useState(true);
+    const isSSG = typeof window === "undefined"
+    const [showFirstPage, setShowFirstPage] = useState(isSSG);
 
     // When a user enters a url in the browser bar manually, there is no way to prevent them from getting
     // the html file and displaying the page (Preventing that is only be possible with SSR).
