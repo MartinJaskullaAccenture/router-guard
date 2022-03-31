@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { NextRouter, useRouter } from "next/router";
 import { meinSkyGuard } from './meinSkyGuard';
 import { salesGuard } from './salesGuard';
+import { wildcardToRegExp } from './wildcard-to-reg-exp';
 
 
 interface GuardParams {
@@ -13,14 +14,14 @@ interface GuardParams {
 }
 
 export type Guards = {
-    [url: string]: (guardParams: GuardParams) => void
+    [url: string]: (guardParams: GuardParams) => undefined
 }
 
-// TODO Export registerGuards
 const guards: Guards = {
     ...meinSkyGuard,
     ...salesGuard,
-    "/mein-sky/*": (url) => ({newUrl: url, reload: true})
+    // "/mein-sky/*": ({noNavigation}) => noNavigation(),
+    "/mein-sky/*/*": ({noNavigation}) => noNavigation()
 }
 
 
@@ -50,10 +51,10 @@ export function useRouteGuards() {
 }
 
 function checkGuards(url: string, guards: Guards, router: NextRouter) {
-    // getCMSData()
-    // TODO Check * in url
-    if (url in guards) {
-        guards[url]({
+    const guard = getGuard(url, guards)
+
+    if (guard) {
+        guard({
             url,
             allowNavigation: () => undefined,
             noNavigation: () => {
@@ -70,3 +71,21 @@ function checkGuards(url: string, guards: Guards, router: NextRouter) {
         })
     }
 }
+
+// /mein-sky/*/order matches /mein-sky//order
+// /mein-sky/*/order matches /mein-sky/user/order
+// /mein-sky/*/order does not match /mein-sky/user/
+// /mein-sky/*/order does not match /mein-sky/order (only one /)
+// /mein-sky/* does not match /mein-sky
+// /mein-sky/* matches /mein-sky/
+// /mein-sky/* matches /mein-sky/user
+// /mein-sky/* matches /mein-sky/user/order
+// /mein-sky/*/* matches /mein-sky/user/order, but not /mein-sky/user
+export function getGuard(url: string, guards: Guards): Guards[keyof Guards] | undefined {
+    if (url in guards) return guards[url]
+
+    const wildcardUrls = Object.keys(guards).filter(url => url.includes("*"))
+    const matchingWildcardUrl = wildcardUrls.find(wildcardUrl => !!url.match(wildcardToRegExp(wildcardUrl)))
+    if (matchingWildcardUrl) return guards[matchingWildcardUrl]
+}
+
